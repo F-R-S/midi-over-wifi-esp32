@@ -3,19 +3,15 @@ PERHATIAN
 Program ini tidak mendukung pengiriman System Exclusive.
 Arduino UDP
 Using hardwareSerial2 Sebagai input MIDI
-Kandidat Pengirim 1
 */
 
 #include <Arduino.h>
 
-#define TIMER_MS 0              // Timer ticker, 0 untuk disable.
-#define UDP_PORT 1112           // port UDP
-#define DEBUG_THRU              //komen untuk tanpa debug thru
-#define DEBUG_UDP_PACKET        //komen untuk tanpa debug udp packet
-#define DEBUG_PACKET_COUNTER    //komen untuk tanpa debug perhitungan paket
-#define ESP32_TICKER            //komen untuk menonaktifkan lib ESP32_ticker / nativ Ticker
-#define LED_INDIKATOR 2         // pin LED proses
-#define PIN_CEK_PAKET 23        // pin untuk triger penampilan debug perhitungan paket
+#define TIMER_MS 1
+#define UDP_PORT 1112
+#define THRU_ON 
+#define ESP32_TICKER
+#define LED_INDIKATOR 2
 
 
 #ifdef ESP32_TICKER
@@ -36,11 +32,8 @@ bool timeToRead;
 
 Ticker tickerBaca;
 AsyncUDP udp;
+//AsyncUDPPacket udpPacket;
 
-#ifdef DEBUG_PACKET_COUNTER
-unsigned int packetCounter=0;
-unsigned int dataCounter=0;
-#endif
 
 void setup();
 void loop();
@@ -56,11 +49,6 @@ void setup() {
   Serial.begin(115200);
 
   pinMode(LED_INDIKATOR, OUTPUT);
-  
-  #ifdef DEBUG_PACKET_COUNTER
-  pinMode(PIN_CEK_PAKET, INPUT_PULLUP);
-  #endif
-
   delay(1000);
 
 #ifdef DEBUG_ON
@@ -75,88 +63,45 @@ Serial.println ("Menggunakan TICKER Biasa");
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
-  WiFi.setSleep(false);
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("WiFi Failed");
     while (1) {
       delay(1000);
     }
   }
-  if (TIMER_MS){
-    tickerBaca.attach_ms(TIMER_MS, tickerBacaInterupt);
-    Serial.print("Ticker ON :");
-    Serial.print(TIMER_MS);
-    Serial.println(" ms"); 
-  } else {
-    Serial.println("Gak pakai ticker");
-  }
-
-
-  
+  tickerBaca.attach_ms(TIMER_MS, tickerBacaInterupt);
+  Serial.println("Ticker ON");
   delay(1000);
     if (udp.connect(IPAddress(255, 255, 255, 255), UDP_PORT)) {
     Serial.println("\n UDP connected : 255,255,255,255");
   }
+  delay (1000);
+  //udpPacket.~AsyncUDPPacket
 
 }
 
 
 void loop() {
-  if (TIMER_MS){   
-    if (timeToRead){
-      if (Serial2.available()) {
-        readSerial_multy();
-      }
-    timeToRead= false;
-    }
-  } else {
-    if (Serial2.available()) {
-        readSerial_multy();
-      }
+if (timeToRead){
+  if (Serial2.available()) {
+    readSerial_multy();
   }
-
-  #ifdef DEBUG_PACKET_COUNTER
-  if (!digitalRead(PIN_CEK_PAKET)){
-    Serial.println("\n\n===========================");
-    Serial.print("Paket Terkirim = ");
-    Serial.println(packetCounter);
-    Serial.print("Paket Sebesar= ");
-    Serial.println(dataCounter);
-    Serial.println("===========================");
-    while(1)
-    {
-      if(digitalRead(PIN_CEK_PAKET)){
-        break;
-      } 
-    }
+  timeToRead= false;
   }
-  #endif
+  yield;
 }
 
 void kirim() {
   digitalWrite(LED_INDIKATOR, HIGH);
-  unsigned int ret;
+
 #ifdef DEBUG_ON
   Serial.print ("panjangPesanTersimpan : "); Serial.println(panjangPesanTersimpan);
   Serial.print("jumlahPesan : "); Serial.println(jumlahPesan);
 #endif
 
-#ifdef DEBUG_UDP_PACKET
-  ret = udp.write(_midiMessage, panjangPesanTersimpan);
-  Serial.print(ret);
-  Serial.print("   ");
-#else
-  ret = udp.write(_midiMessage, panjangPesanTersimpan);
-#endif
+udp.write(_midiMessage, panjangPesanTersimpan);
 
-  #ifdef DEBUG_PACKET_COUNTER
-  if (ret){
-    dataCounter += panjangPesanTersimpan;
-    packetCounter ++;
-  }
-  #endif
-
-#ifdef DEBUG_THRU
+#ifdef THRU_ON
   for (int i = 0; i < panjangPesanTersimpan; i++) {
 
     Serial.print(_midiMessage[i], HEX);
@@ -252,8 +197,10 @@ int getStatus_dataCount (byte inStatus) {
 }
 
 void readSerial_multy() {
+
   byte _buff;
   while (1) {
+    //yield;
     if (Serial2.available()) {
       _buff = Serial2.read();
 

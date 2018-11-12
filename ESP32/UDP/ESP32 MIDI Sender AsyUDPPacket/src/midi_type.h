@@ -1,7 +1,7 @@
 // Maksimal data SysEx
 //#define SYS_EX_MAX_SIZE           128
 #define SYS_EX_MAX_SIZE           1
-#define MIDI_MSG_MAX_UDP          255
+#define MIDI_MSG_MAX_UDP          12
 #define MIDI_BUFFER_MAX           SYS_EX_MAX_SIZE+1+(3*MIDI_MSG_MAX_UDP) // 1 byte identitas 1, byte EOX (Sys Exclusive)
 #define FLAG_BIT_STATUS           0x80    ///10000000
 

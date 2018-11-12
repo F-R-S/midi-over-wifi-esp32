@@ -1,5 +1,6 @@
 /*
 Using hardwareSerial2 Sebagai Keluaran MIDI
+Kandidat Penerima 1
 */
 
 
@@ -23,7 +24,11 @@ unsigned int packetCounter=0;
 unsigned int dataCounter=0;
 #endif
 
+
 AsyncUDP udp;
+
+
+
 
 void setup()
 {
@@ -38,6 +43,7 @@ void setup()
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
+  WiFi.setSleep(false);
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("WiFi Failed");
     while (1) {
@@ -46,6 +52,7 @@ void setup()
   } if (udp.listen(UDP_PORT)) {
     Serial.print("UDP Listening on IP: "); Serial.println(WiFi.localIP()); 
     Serial.print("Port: "); Serial.println(UDP_PORT);
+    Serial.print ("Task Core: "); Serial.println(xPortGetCoreID());
     udp.onPacket([](AsyncUDPPacket packet) {
       digitalWrite(LED_INDIKATOR, HIGH);
       Serial2.write(packet.data(), packet.length());
@@ -67,13 +74,13 @@ void setup()
       Serial.println();
       #endif
 
+      //Serial.print ("Task Core: "); Serial.println(xPortGetCoreID());
       digitalWrite(LED_INDIKATOR, LOW);
     });
   }
 }
 void loop()
 {
-  yield;
   #ifdef DEBUG_PACKET_COUNTER
   if (!digitalRead(PIN_CEK_PAKET)){
     Serial.println("\n\n===========================");
@@ -90,6 +97,6 @@ void loop()
     }
   }
   #endif
-  delay(10000);
+  //delay(1000);
   //Ora ngopo-ngopo
 }
