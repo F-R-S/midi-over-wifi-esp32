@@ -3,14 +3,10 @@ Using hardwareSerial2 Sebagai Keluaran MIDI
 Kandidat Penerima 1
 */
 
-
 #define LED_INDIKATOR 2
 #define UDP_PORT 1112
-#define DEBUG_THRU 
-#define DEBUG_UDP_PACKET
-#define DEBUG_PACKET_COUNTER
-#define PIN_CEK_PAKET 23
-
+#define DEBUG_THRU_AND_UDP_COUNTER
+#define PIN_UDP_TRIG_BTN 23
 #include <Arduino.h>
 
 #include "WiFi.h"
@@ -19,11 +15,10 @@ Kandidat Penerima 1
 const char * ssid = "MIDI";
 const char * password = "MIDIMIDI";
 
-#ifdef DEBUG_PACKET_COUNTER
+#ifdef DEBUG_THRU_AND_UDP_COUNTER
 unsigned int packetCounter=0;
 unsigned int dataCounter=0;
 #endif
-
 
 AsyncUDP udp;
 
@@ -34,67 +29,66 @@ void setup()
 
   pinMode(LED_INDIKATOR, OUTPUT);
 
-  #ifdef DEBUG_PACKET_COUNTER
-  pinMode(PIN_CEK_PAKET, INPUT_PULLUP);
-  #endif
+#ifdef DEBUG_THRU_AND_UDP_COUNTER
+  pinMode(PIN_UDP_TRIG_BTN, INPUT_PULLUP);
+#endif
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   WiFi.setSleep(false);
+  Serial.print("\n\n\n\nMenghubungkan ke AP: "); Serial.println(ssid); 
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("WiFi Failed");
-    while (1) {
-      delay(1000);
-    }
-  } if (udp.listen(UDP_PORT)) {
+    Serial.println("ESP Restart in 10 Sec"); 
+    pinMode(LED_INDIKATOR,HIGH);
+    delay(10000);
+    ESP.restart();
+  } 
+  if (udp.listen(UDP_PORT)) {
     Serial.print("UDP Listening on IP: "); Serial.println(WiFi.localIP()); 
     Serial.print("Port: "); Serial.println(UDP_PORT);
-    Serial.print ("Task Core: "); Serial.println(xPortGetCoreID());
     udp.onPacket([](AsyncUDPPacket packet) {
       digitalWrite(LED_INDIKATOR, HIGH);
       Serial2.write(packet.data(), packet.length());
-
-      #ifdef DEBUG_PACKET_COUNTER
+#ifdef DEBUG_THRU_AND_UDP_COUNTER
       packetCounter ++;
       dataCounter += packet.length();
-      #endif
-
-      #ifdef DEBUG_UDP_PACKET
       Serial.print(packet.length()); 
       Serial.print("   ");
-      #endif
-
-      #ifdef DEBUG_THRU
       for (int i = 0; i < packet.length(); i++) {
         Serial.print(packet.data()[i], HEX);
       }
       Serial.println();
-      #endif
-
-      //Serial.print ("Task Core: "); Serial.println(xPortGetCoreID());
+#endif
       digitalWrite(LED_INDIKATOR, LOW);
     });
   }
 }
 void loop()
 {
-  #ifdef DEBUG_PACKET_COUNTER
-  if (!digitalRead(PIN_CEK_PAKET)){
+  delay(1000); //Beban task
+  if (!WiFi.isConnected()){
+    // Ora nyambung
+    Serial.println("Not Connected, Restart in 10 Sec");
+    pinMode(LED_INDIKATOR,HIGH);
+    delay(1000);
+    ESP.restart();
+  }
+#ifdef DEBUG_THRU_AND_UDP_COUNTER
+  if (!digitalRead(PIN_UDP_TRIG_BTN)){
     Serial.println("\n\n===========================");
     Serial.print("Paket Diterima= ");
     Serial.println(packetCounter);
     Serial.print("Paket Sebesar= ");
     Serial.println(dataCounter);
     Serial.println("===========================");
-    delay(100);
     while(1)
     {
-      if(digitalRead(PIN_CEK_PAKET)){
+      if(digitalRead(PIN_UDP_TRIG_BTN)){
         break;
       } 
     }
   }
-  #endif
-  //delay(1000);
+#endif
   //Ora ngopo-ngopo
 }

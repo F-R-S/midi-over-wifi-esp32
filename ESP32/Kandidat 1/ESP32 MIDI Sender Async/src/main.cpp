@@ -3,26 +3,16 @@ PERHATIAN
 Program ini tidak mendukung pengiriman System Exclusive.
 Arduino UDP
 Using hardwareSerial2 Sebagai input MIDI
+test task core 1
 Kandidat Pengirim 1
 */
 
 #include <Arduino.h>
 
-#define TIMER_MS 0              // Timer ticker, 0 untuk disable.
 #define UDP_PORT 1112           // port UDP
-#define DEBUG_THRU              //komen untuk tanpa debug thru
-#define DEBUG_UDP_PACKET        //komen untuk tanpa debug udp packet
-#define DEBUG_PACKET_COUNTER    //komen untuk tanpa debug perhitungan paket
-#define ESP32_TICKER            //komen untuk menonaktifkan lib ESP32_ticker / nativ Ticker
+//#define DEBUG_THRU_AND_UDP_COUNTER
 #define LED_INDIKATOR 2         // pin LED proses
 #define PIN_CEK_PAKET 23        // pin untuk triger penampilan debug perhitungan paket
-
-
-#ifdef ESP32_TICKER
-#include <ESP32Ticker.h>
-#else
-#include <Ticker.h>
-#endif
 
 #include "WiFi.h"
 #include "AsyncUDP.h"
@@ -32,12 +22,11 @@ Kandidat Pengirim 1
 const char * ssid = "MIDI";
 const char * password = "MIDIMIDI";
 
-bool timeToRead;
-
-Ticker tickerBaca;
 AsyncUDP udp;
 
-#ifdef DEBUG_PACKET_COUNTER
+
+
+#ifdef DEBUG_THRU_AND_UDP_COUNTER
 unsigned int packetCounter=0;
 unsigned int dataCounter=0;
 #endif
@@ -49,73 +38,46 @@ void kosongkan();
 MidiType getStatusType(byte status_);
 int getStatus_dataCount (byte inStatus);
 void readSerial_multy();
-void tickerBacaInterupt();
 
 void setup() {
   Serial2.begin(31250);
   Serial.begin(115200);
 
   pinMode(LED_INDIKATOR, OUTPUT);
-  
-  #ifdef DEBUG_PACKET_COUNTER
+
+#ifdef DEBUG_THRU_AND_UDP_COUNTER
   pinMode(PIN_CEK_PAKET, INPUT_PULLUP);
-  #endif
+#endif
 
   delay(1000);
-
-#ifdef DEBUG_ON
-  Serial.println ("<+++++++++++++++ Debug ON +++++++++++++++++++++ >");
-#endif
-
-#ifdef ESP32_TICKER
-Serial.println ("Menggunakan ESP32_TICKER");
-#else
-Serial.println ("Menggunakan TICKER Biasa");
-#endif
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   WiFi.setSleep(false);
+  Serial.print("\n\n\n\nMenghubungkan ke AP: "); Serial.println(ssid); 
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("WiFi Failed");
-    while (1) {
-      delay(1000);
-    }
-  }
-  if (TIMER_MS){
-    tickerBaca.attach_ms(TIMER_MS, tickerBacaInterupt);
-    Serial.print("Ticker ON :");
-    Serial.print(TIMER_MS);
-    Serial.println(" ms"); 
-  } else {
-    Serial.println("Gak pakai ticker");
-  }
+    Serial.println("ESP Restart in 10 Sec"); 
+    pinMode(LED_INDIKATOR,HIGH);
+    delay(10000);
+    ESP.restart();
+  } 
+  Serial.print("\nTerkoneksi dengan IP: "); Serial.println(WiFi.localIP()); 
+  Serial.println("Tidak menggunakan ticker");
 
-
-  
   delay(1000);
     if (udp.connect(IPAddress(255, 255, 255, 255), UDP_PORT)) {
-    Serial.println("\n UDP connected : 255,255,255,255");
+    Serial.println("\nUDP connected to : 255.255.255.255");
   }
 
 }
 
 
 void loop() {
-  if (TIMER_MS){   
-    if (timeToRead){
-      if (Serial2.available()) {
-        readSerial_multy();
-      }
-    timeToRead= false;
-    }
-  } else {
-    if (Serial2.available()) {
-        readSerial_multy();
-      }
+  if (Serial.available()) {
+    readSerial_multy();
   }
-
-  #ifdef DEBUG_PACKET_COUNTER
+#ifdef DEBUG_THRU_AND_UDP_COUNTER
   if (!digitalRead(PIN_CEK_PAKET)){
     Serial.println("\n\n===========================");
     Serial.print("Paket Terkirim = ");
@@ -131,43 +93,31 @@ void loop() {
       } 
     }
   }
-  #endif
+#endif
 }
+
 
 void kirim() {
   digitalWrite(LED_INDIKATOR, HIGH);
   unsigned int ret;
-#ifdef DEBUG_ON
-  Serial.print ("panjangPesanTersimpan : "); Serial.println(panjangPesanTersimpan);
-  Serial.print("jumlahPesan : "); Serial.println(jumlahPesan);
-#endif
 
-#ifdef DEBUG_UDP_PACKET
+#ifdef DEBUG_THRU_AND_UDP_COUNTER
   ret = udp.write(_midiMessage, panjangPesanTersimpan);
   Serial.print(ret);
   Serial.print("   ");
-#else
-  ret = udp.write(_midiMessage, panjangPesanTersimpan);
-#endif
-
-  #ifdef DEBUG_PACKET_COUNTER
-  if (ret){
+    if (ret){
     dataCounter += panjangPesanTersimpan;
     packetCounter ++;
   }
-  #endif
-
-#ifdef DEBUG_THRU
-  for (int i = 0; i < panjangPesanTersimpan; i++) {
+    for (int i = 0; i < panjangPesanTersimpan; i++) {
 
     Serial.print(_midiMessage[i], HEX);
   }
   Serial.println();
+#else
+  udp.write(_midiMessage, panjangPesanTersimpan);
 #endif
 
-#ifdef DEBUG_ON
-  Serial.println();
-#endif
   digitalWrite(LED_INDIKATOR, LOW);
 }
 
@@ -206,12 +156,9 @@ int getStatus_dataCount (byte inStatus) {
     case ActiveSensing:
     case SystemReset:
     case TuneRequest:
-
       _dataCount = 0;
       return true;
       break;
-
-
     case ProgramChange:
     case AfterTouchChannel:
     case TimeCodeQuarterFrame:
@@ -239,8 +186,6 @@ int getStatus_dataCount (byte inStatus) {
       break;
 
     case SystemExclusive:
-
-
       _dataCount = SYS_EX_MAX_SIZE + 3;
       _flagEndSysExclusive = false;
       break;
@@ -253,47 +198,27 @@ int getStatus_dataCount (byte inStatus) {
 }
 
 void readSerial_multy() {
+  //tempat menampung byte Serial
   byte _buff;
   while (1) {
-    if (Serial2.available()) {
-      _buff = Serial2.read();
-
-#ifdef DEBUG_ON
-      Serial.println("Masuk Serial multy");
-#endif
-
-
+    if (Serial.available()) {
+      _buff = Serial.read();
+      //memisahkan byte status/data MIDI
       if (_buff & FLAG_BIT_STATUS) {
-
-#ifdef DEBUG_ON
-        Serial.println("Masuk Status");
-#endif
-
-
+        //masuk status MIDI
+        //mendapatkan jenis status
         if (getStatus_dataCount(_buff)) {
+          // masuk 
           if (_flagEndSysExclusive) {
             _midiMessage[panjangPesanTersimpan] = _buff;
             panjangPesanTersimpan++;
             _flagEndSysExclusive = false;
           } else {
-
-#ifdef DEBUG_ON
-            Serial.println("Status Biasa");
-#endif
-
             _midiMessage[panjangPesanTersimpan] = _buff;
-
             panjangPesanTersimpan++;
           }
         }
-
       } else {
-
-
-#ifdef DEBUG_ON
-        Serial.println("Masuk Data");
-#endif
-
         if (_dataCount) {
           _midiMessage[panjangPesanTersimpan] = _buff;
           panjangPesanTersimpan++;
@@ -302,30 +227,20 @@ void readSerial_multy() {
       }
 
       if (!_dataCount) {
-
         jumlahPesan++;
       }
       if (panjangPesanTersimpan > MIDI_BUFFER_MAX - 1) {
-
-
-#ifdef DEBUG_ON
-        Serial.println("Buffer Penuh");
-#endif
+        // Buffer penuh -> Keluar while
         break;
       }
       if (jumlahPesan >= MIDI_MSG_MAX_UDP) {
-
+        // Jumlah pesan 
         break;
       }
     } else {
-
+      // Tidak ada buffer di serial
       if (!_dataCount) {
-
-
-#ifdef DEBUG_ON
-        Serial.println("Tidak ada pesan lagi");
-#endif
-
+        // Tidak ada byte data
         break;
       }
     }
@@ -333,8 +248,4 @@ void readSerial_multy() {
   kirim();
   panjangPesanTersimpan = 0;
   jumlahPesan = 0;
-}
-
-void tickerBacaInterupt() {
-  timeToRead =true;
 }
