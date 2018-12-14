@@ -1,12 +1,16 @@
 /*
-PERHATIAN
-Program ini tidak mendukung pengiriman System Exclusive.
-Arduino UDP
++++++ [UJI 2] Program Komunikasi UDP       ++++++
+~~~~~~~~~~~~~~~~~Bagian Pengirim~~~~~~~~~~~~~~~~~
+Author	: Fahrizal Hari Utama
+Board	: ESp32 Dev Board / ESP 32 DevKit
+Multi core (RTOS) : yes
+Framework	: Arduino ESP32 RTOS
+Kandidat Uji 2 Pengirim  : 1 build 32
+https://github.com/k2biru
+===============================================
 PENGUJIAN 2
 Berisi program menguji koumikasi UDP Async WiFi
-Kandidat Pengirim 1
-
-Program ini mensimulasikan komunikasi UDP async dengan mengirimkan data sebesar 10 pesan MIDI setial 2ms
+Pengujian ini mensimulasikan komunikasi UDP async dengan mengirimkan data sebesar 10 pesan MIDI setiap 4ms
 */
 #include <Arduino.h>
 
@@ -19,17 +23,12 @@ Program ini mensimulasikan komunikasi UDP async dengan mengirimkan data sebesar 
 #define TIMER_MS 4
 #define LOOP_UDP 100
 
-
 const char * ssid = "MIDI";
 const char * password = "MIDIMIDI";
 
-
 AsyncUDP udp;
-
 bool timeToDo;
-
 Ticker tickerDo;
-
 byte msg[_ARRAY];
 unsigned int packetCounter=0;
 unsigned int dataCounter=0;
@@ -39,8 +38,7 @@ void tickerDoInterupt();
 
 void setup()
 {
-    Serial.begin (115200);
-    
+  Serial.begin (115200); // ke PC
   Serial.println("\n\n\n Pengujian 2 | UDP Async Send data");
   Serial.println("I'M OK");
   Serial.print("ms : "); Serial.println(TIMER_MS);
@@ -61,7 +59,6 @@ void setup()
   {
     msg[x] = msg [0];
   }
-
   if (udp.connect(IPAddress(255, 255, 255, 255), 1112)) {
     Serial.println("\n UDP connected : 255, 255,255, 255");
   }
@@ -73,14 +70,6 @@ void loop()
   if (timeToDo){  
     unsigned int ret;
     ret = udp.write(msg, BIT_SEND);
-    /*
-    Serial.print(ret);
-    Serial.print("   ");    
-    for (int i = 0; i < BIT_SEND; i++) {
-      Serial.print(msg[i]);
-    }
-    Serial.println();
-*/
     if (ret){
       dataCounter += ret;
       packetCounter ++;
@@ -108,7 +97,6 @@ void loop()
     }
   }
 }
-
 void tickerDoInterupt() {
 timeToDo =true;
 }

@@ -1,11 +1,20 @@
 /*
-Using hardwareSerial2 Sebagai Keluaran MIDI
-Kandidat Penerima 1
++++++ [UJI 2] Program Komunikasi UDP       ++++++
+~~~~~~~~~~~~~~~~~Bagian Penerima~~~~~~~~~~~~~~~~~
+Author	: Fahrizal Hari Utama
+Board	: ESp32 Dev Board / ESP 32 DevKit
+Multi core (RTOS) : no
+Framework	: Arduino ESP32 RTOS
+Kandidat Uji 2 Penerima  : 1 build 24
+https://github.com/k2biru
+===============================================
+PENGUJIAN 2
+Berisi program menguji koumikasi UDP Async WiFi
+Pengujian ini mensimulasikan komunikasi UDP async dengan mengirimkan data sebesar 10 pesan MIDI setiap 4ms
 */
 
 #define LED_INDIKATOR 2
 #define UDP_PORT 1112
-#define DEBUG_THRU_AND_UDP_COUNTER
 #define PIN_UDP_TRIG_BTN 23
 #include <Arduino.h>
 
@@ -14,12 +23,8 @@ Kandidat Penerima 1
 
 const char * ssid = "MIDI";
 const char * password = "MIDIMIDI";
-
-#ifdef DEBUG_THRU_AND_UDP_COUNTER
 unsigned int packetCounter=0;
 unsigned int dataCounter=0;
-#endif
-
 AsyncUDP udp;
 
 void setup()
@@ -28,11 +33,7 @@ void setup()
   Serial.begin(115200);
 
   pinMode(LED_INDIKATOR, OUTPUT);
-
-#ifdef DEBUG_THRU_AND_UDP_COUNTER
   pinMode(PIN_UDP_TRIG_BTN, INPUT_PULLUP);
-#endif
-
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   WiFi.setSleep(false);
@@ -48,42 +49,20 @@ void setup()
     Serial.print("UDP Listening on IP: "); Serial.println(WiFi.localIP()); 
     Serial.print("Port: "); Serial.println(UDP_PORT);
     udp.onPacket([](AsyncUDPPacket packet) {
-      //digitalWrite(LED_INDIKATOR, HIGH);
-      //Serial2.write(packet.data(), packet.length());
-#ifdef DEBUG_THRU_AND_UDP_COUNTER
+	  pinMode(LED_INDIKATOR,HIGH);
       packetCounter ++;
       dataCounter += packet.length();
-      /*
-      Serial.print(packet.length()); 
-      Serial.print("   ");
-      for (int i = 0; i < packet.length(); i++) {
-        Serial.print(packet.data()[i], HEX);
-      }
-      Serial.println();
-      */
-#endif
-      //digitalWrite(LED_INDIKATOR, LOW);
+	  digitalWrite(LED_INDIKATOR, LOW);
     });
   }
 }
 void loop()
 {
-  //delay(1000); //Beban task
-  /*
-  if (!WiFi.isConnected()){
-    // Ora nyambung
-    Serial.println("Not Connected, Restart in 10 Sec");
-    pinMode(LED_INDIKATOR,HIGH);
-    delay(1000);
-    ESP.restart();
-  }
-  */
-#ifdef DEBUG_THRU_AND_UDP_COUNTER
   if (!digitalRead(PIN_UDP_TRIG_BTN)){
     Serial.println("\n\n===========================");
-    Serial.print("Paket Diterima= ");
+    Serial.print("Paket Diterima = ");
     Serial.println(packetCounter);
-    Serial.print("Paket Sebesar= ");
+    Serial.print("Paket Sebesar = ");
     Serial.println(dataCounter);
     Serial.println("===========================");
     while(1)
@@ -93,6 +72,5 @@ void loop()
       } 
     }
   }
-#endif
   //Ora ngopo-ngopo
 }
